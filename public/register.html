@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - Mentorship Feedback System</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="auth-page">
+        <div class="auth-card card">
+            <h1 style="text-align: center; margin-bottom: 1.5rem;">Create Account</h1>
+            <form id="registerForm">
+                <div class="form-group">
+                    <label for="name">Full Name</label>
+                    <input type="text" id="name" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+                <div class="form-group">
+                    <label for="role">Role</label>
+                    <select id="role" name="role" required>
+                        <option value="student">Student</option>
+                        <option value="mentor">Mentor</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+                <div class="form-group" id="regNumGroup">
+                    <label for="register_number">Register Number</label>
+                    <input type="text" id="register_number" name="register_number" placeholder="Required for students">
+                </div>
+                <div class="form-group">
+                    <label for="department">Department</label>
+                    <input type="text" id="department" name="department">
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 0.5rem;">Register</button>
+            </form>
+            <p style="text-align: center; margin-top: 1.5rem;">
+                Already have an account? <a href="index.html">Login</a>
+            </p>
+            <div id="msg" class="alert" style="display: none; margin-top: 1rem;"></div>
+        </div>
+    </div>
+    <script src="js/api.js"></script>
+    <script>
+        document.getElementById('role').addEventListener('change', function() {
+            document.getElementById('regNumGroup').style.display = this.value === 'student' ? 'block' : 'none';
+        });
+        document.getElementById('regNumGroup').style.display = 'block';
+
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const msg = document.getElementById('msg');
+            msg.style.display = 'none';
+            const fd = new FormData(e.target);
+            const data = Object.fromEntries(fd);
+            if (data.role === 'student' && !data.register_number) {
+                msg.className = 'alert alert-danger';
+                msg.textContent = 'Register number is required for students.';
+                msg.style.display = 'block';
+                return;
+            }
+            try {
+                await api('auth/register', { method: 'POST', body: JSON.stringify(data) });
+                msg.className = 'alert alert-success';
+                msg.textContent = 'Registration successful! Redirecting to login...';
+                msg.style.display = 'block';
+                setTimeout(() => location.href = 'index.html', 1500);
+            } catch (err) {
+                msg.className = 'alert alert-danger';
+                msg.textContent = err.message || 'Registration failed';
+                msg.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>

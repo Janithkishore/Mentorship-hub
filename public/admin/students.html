@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Performance - Admin</title>
+    <link rel="stylesheet" href="../css/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="app-layout">
+    <aside class="sidebar">
+        <div class="sidebar-logo">Admin Portal</div>
+        <nav class="sidebar-nav">
+            <a href="dashboard.html">Dashboard</a>
+            <a href="students.html" class="active">Student Performance</a>
+            <a href="mentors.html">Mentor Performance</a>
+            <a href="feedback.html">Feedback Management</a>
+            <a href="assignments.html">Assignments</a>
+            <a href="questions.html">Questions</a>
+            <a href="reports.html">Reports</a>
+            <a href="../index.html" onclick="logout()">Logout</a>
+        </nav>
+    </aside>
+    <main class="main-content">
+        <h1>Student Performance Monitoring</h1>
+        <p style="color: var(--text-secondary); margin-bottom: 2rem;">Search by name or register number. View profile, attendance, grades, projects.</p>
+
+        <div class="card">
+            <h3 class="card-title">Search Student</h3>
+            <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+                <input type="text" id="searchInput" placeholder="Name or register number" style="flex: 1; padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border);">
+                <button class="btn btn-primary" onclick="searchStudents()">Search</button>
+            </div>
+            <div id="searchResults"></div>
+        </div>
+
+        <div id="profileSection" class="card" style="display: none;">
+            <h3 class="card-title">Student Profile</h3>
+            <div id="profileContent"></div>
+            <div id="attendanceAlert" class="alert alert-warning" style="display: none;">Attendance below 75%!</div>
+            <h4 style="margin-top: 1.5rem;">Subject-wise Grades</h4>
+            <div id="gradesContent"></div>
+            <h4 style="margin-top: 1.5rem;">Attendance</h4>
+            <div id="attendanceContent"></div>
+            <h4 style="margin-top: 1.5rem;">Projects</h4>
+            <div id="projectsContent"></div>
+            <canvas id="chartCanvas" style="max-width: 400px; margin-top: 1rem;"></canvas>
+            <button class="btn btn-primary" onclick="downloadReport()" style="margin-top: 1rem;">Download Report (PDF)</button>
+        </div>
+
+        <div class="card">
+            <h3 class="card-title">Add Attendance</h3>
+            <form id="attendanceForm">
+                <input type="hidden" name="student_id" id="attStudentId">
+                <div class="form-group"><input name="subject_code" placeholder="Subject code" required></div>
+                <div class="form-group"><input type="number" name="total_classes" placeholder="Total classes" required></div>
+                <div class="form-group"><input type="number" name="attended_classes" placeholder="Attended" required></div>
+                <button type="submit" class="btn btn-primary">Add</button>
+            </form>
+        </div>
+        <div class="card">
+            <h3 class="card-title">Add Grade</h3>
+            <form id="gradeForm">
+                <input type="hidden" name="student_id" id="gradeStudentId">
+                <div class="form-group"><input name="subject_code" placeholder="Subject code" required></div>
+                <div class="form-group"><input name="subject_name" placeholder="Subject name"></div>
+                <div class="form-group"><input type="number" step="0.01" name="marks_obtained" placeholder="Marks" required></div>
+                <button type="submit" class="btn btn-primary">Add</button>
+            </form>
+        </div>
+    </main>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
+    <script src="../js/api.js"></script>
+    <script>
+        let selectedStudentId = null;
+        let profileData = null;
+        async function searchStudents() {
+            const q = document.getElementById('searchInput').value.trim();
+            try {
+                const res = await api('admin/students/search?q=' + encodeURIComponent(q));
+                const list = res.students || [];
+                document.getElementById('searchResults').innerHTML = list.length ? list.map(s =>
+                    '<p><button class="btn btn-secondary btn-sm" onclick="loadProfile(' + s.user_id + ')">View</button> ' + s.name + ' - ' + (s.register_number || s.email) + '</p>'
+                ).join('') : '<p style="color: var(--text-secondary);">No results.</p>';
+            } catch (e) { console.error(e); }
+        }
+        async function loadProfile(id) {
+            selectedStudentId = id;
+            document.getElementById('attStudentId').value = id;
+            document.getElementById('gradeStudentId').value = id;
+            try {
+                const res = await api('admin/students/' + id);
+                profileData = res;
+                document.getElementById('profileSection').style.display = 'block';
+                document.getElementById('profileContent').innerHTML = '<p><strong>' + res.student.name + '</strong></p><p>' + res.student.email + ' | ' + (res.student.register_number || '-') + '</p><p>Overall: ' + (res.overall_performance || 0) + '% | CGPA: ' + (res.cgpa || 0) + ' | Attendance: ' + (res.avg_attendance ?? '-') + '%</p>';
+                document.getElementById('attendanceAlert').style.display = res.attendance_alert ? 'block' : 'none';
+                document.getElementById('gradesContent').innerHTML = (res.grades || []).length ? '<table><tr><th>Subject</th><th>Marks</th></tr>' + res.grades.map(g => '<tr><td>' + (g.subject_name || g.subject_code) + '</td><td>' + g.marks_obtained + '/' + g.max_marks + '</td></tr>').join('') + '</table>' : '<p>No grades.</p>';
+                document.getElementById('attendanceContent').innerHTML = (res.attendance || []).length ? '<table><tr><th>Subject</th><th>%</th></tr>' + res.attendance.map(a => '<tr><td>' + a.subject_code + '</td><td>' + a.pct + '%</td></tr>').join('') + '</table>' : '<p>No attendance.</p>';
+                document.getElementById('projectsContent').innerHTML = (res.projects || []).length ? res.projects.map(p => '<p><strong>' + p.project_title + '</strong> - ' + (p.marks_obtained || '-') + '/' + (p.max_marks || 100) + '</p>').join('') : '<p>No projects.</p>';
+                if (window.Chart && res.grades && res.grades.length) {
+                    new Chart(document.getElementById('chartCanvas'), { type: 'bar', data: { labels: res.grades.map(g => g.subject_name || g.subject_code), datasets: [{ label: 'Marks %', data: res.grades.map(g => (g.marks_obtained / (g.max_marks || 100)) * 100), backgroundColor: '#3b82f6' }] }, options: { responsive: true } });
+                }
+            } catch (e) { console.error(e); }
+        }
+        function downloadReport() {
+            if (!profileData || !window.jspdf) return;
+            const doc = new window.jspdf.jsPDF();
+            doc.text('Student Report: ' + profileData.student.name, 20, 20);
+            doc.text('Overall: ' + (profileData.overall_performance || 0) + '% | CGPA: ' + (profileData.cgpa || 0), 20, 30);
+            if (profileData.attendance_alert) doc.text('ATTENDANCE ALERT: Below 75%', 20, 40);
+            doc.save('student-report.pdf');
+        }
+        document.getElementById('attendanceForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            try {
+                const fd = new FormData(this);
+                await api('admin/attendance', { method: 'POST', body: JSON.stringify(Object.fromEntries(fd)) });
+                if (selectedStudentId) loadProfile(selectedStudentId);
+                this.reset();
+            } catch (err) { alert(err.message); }
+        });
+        document.getElementById('gradeForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            try {
+                const fd = new FormData(this);
+                await api('admin/grades', { method: 'POST', body: JSON.stringify(Object.fromEntries(fd)) });
+                if (selectedStudentId) loadProfile(selectedStudentId);
+                this.reset();
+            } catch (err) { alert(err.message); }
+        });
+        async function logout() { await api('auth/logout', { method: 'POST' }); }
+    </script>
+</body>
+</html>

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Dashboard - Mentorship Feedback System</title>
+    <link rel="stylesheet" href="../css/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="app-layout">
+    <aside class="sidebar">
+        <div class="sidebar-logo">Student Portal</div>
+        <nav class="sidebar-nav">
+            <a href="dashboard.html" class="active">Dashboard</a>
+            <a href="feedback.html">Submit Feedback</a>
+            <a href="history.html">My History</a>
+            <a href="../index.html" onclick="event.preventDefault(); logout();">Logout</a>
+        </nav>
+    </aside>
+    <main class="main-content">
+        <h1>Welcome, <span id="userName">Student</span></h1>
+        <p style="color: var(--text-secondary); margin-bottom: 2rem;">Student Dashboard</p>
+
+        <div class="card">
+            <h3 class="card-title">Your Assigned Mentor</h3>
+            <div id="mentorInfo">
+                <p style="color: var(--text-secondary);">Loading...</p>
+            </div>
+        </div>
+        <div class="card">
+            <h3 class="card-title">Quick Actions</h3>
+            <a href="feedback.html" class="btn btn-primary" style="margin-right: 0.5rem;">Submit Feedback</a>
+            <a href="history.html" class="btn btn-secondary">View History</a>
+        </div>
+    </main>
+    <script src="../js/api.js"></script>
+    <script>
+        let user = null;
+        async function loadUser() {
+            try {
+                const res = await api('auth/me');
+                user = res.user;
+                document.getElementById('userName').textContent = user.name;
+            } catch (e) {
+                location.href = '../index.html';
+            }
+        }
+        async function loadMentor() {
+            try {
+                const res = await api('student/mentor');
+                const el = document.getElementById('mentorInfo');
+                if (res.mentor) {
+                    el.innerHTML = `
+                        <p><strong>${res.mentor.name}</strong></p>
+                        <p><a href="mailto:${res.mentor.email}">${res.mentor.email}</a></p>
+                        <p style="color: var(--text-secondary);">${res.mentor.department || '—'}</p>
+                    `;
+                } else {
+                    el.innerHTML = '<p style="color: var(--text-secondary);">No mentor assigned yet. Contact admin.</p>';
+                }
+            } catch (e) {
+                document.getElementById('mentorInfo').innerHTML = '<p style="color: var(--danger);">Failed to load mentor.</p>';
+            }
+        }
+        async function logout() {
+            try { await api('auth/logout', { method: 'POST' }); } catch (e) {}
+            location.href = '../index.html';
+        }
+        loadUser().then(loadMentor);
+    </script>
+</body>
+</html>

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mentor Dashboard - Mentorship Feedback System</title>
+    <link rel="stylesheet" href="../css/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="app-layout">
+    <aside class="sidebar">
+        <div class="sidebar-logo">Mentor Portal</div>
+        <nav class="sidebar-nav">
+            <a href="dashboard.html" class="active">Dashboard</a>
+            <a href="feedback.html">View Feedback</a>
+            <a href="../index.html" onclick="event.preventDefault(); logout();">Logout</a>
+        </nav>
+    </aside>
+    <main class="main-content">
+        <h1>Welcome, <span id="userName">Mentor</span></h1>
+        <p style="color: var(--text-secondary); margin-bottom: 2rem;">Mentor Dashboard</p>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="value" id="avgRating">—</div>
+                <div class="label">Average Rating</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" id="totalResponses">0</div>
+                <div class="label">Total Responses</div>
+            </div>
+            <div class="stat-card">
+                <div class="value" id="studentsCount">0</div>
+                <div class="label">Assigned Students</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3 class="card-title">Assigned Students</h3>
+            <div id="studentsList">
+                <p style="color: var(--text-secondary);">Loading...</p>
+            </div>
+        </div>
+        <div class="card">
+            <h3 class="card-title">Recent Feedback</h3>
+            <div id="feedbackList">
+                <p style="color: var(--text-secondary);">Loading...</p>
+            </div>
+        </div>
+    </main>
+    <script src="../js/api.js"></script>
+    <script>
+        async function loadData() {
+            try {
+                const [analytics, students, feedback] = await Promise.all([
+                    api('feedback/analytics'),
+                    api('mentor/students'),
+                    api('mentor/feedback')
+                ]);
+                document.getElementById('avgRating').textContent = analytics.average_rating || '—';
+                document.getElementById('totalResponses').textContent = analytics.total_responses || 0;
+                document.getElementById('studentsCount').textContent = (students.students || []).length;
+                const sl = document.getElementById('studentsList');
+                sl.innerHTML = (students.students || []).length ? (students.students || []).map(s =>
+                    `<p><strong>${s.name}</strong> — ${s.register_number || s.email}</p>`
+                ).join('') : '<p style="color: var(--text-secondary);">No students assigned.</p>';
+                const fl = document.getElementById('feedbackList');
+                const fb = feedback.feedback || [];
+                fl.innerHTML = fb.length ? fb.slice(0, 5).map(f =>
+                    `<p><strong>${f.student_name}</strong>: ${f.question_text} → ${f.response_value}</p>`
+                ).join('') : '<p style="color: var(--text-secondary);">No feedback yet.</p>';
+            } catch (e) {
+                console.error(e);
+            }
+        }
+        (async () => {
+            try {
+                const res = await api('auth/me');
+                document.getElementById('userName').textContent = res.user.name;
+            } catch (e) { location.href = '../index.html'; }
+            loadData();
+        })();
+        async function logout() { try { await api('auth/logout', { method: 'POST' }); } catch (e) {} location.href = '../index.html'; }
+    </script>
+</body>
+</html>

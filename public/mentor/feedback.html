@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Feedback - Mentor</title>
+    <link rel="stylesheet" href="../css/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="app-layout">
+    <aside class="sidebar">
+        <div class="sidebar-logo">Mentor Portal</div>
+        <nav class="sidebar-nav">
+            <a href="dashboard.html">Dashboard</a>
+            <a href="feedback.html" class="active">View Feedback</a>
+            <a href="../index.html" onclick="event.preventDefault(); logout();">Logout</a>
+        </nav>
+    </aside>
+    <main class="main-content">
+        <h1>Feedback Received</h1>
+        <p style="color: var(--text-secondary); margin-bottom: 2rem;">All feedback from your assigned students.</p>
+        <div class="card">
+            <div id="feedbackList">
+                <p style="color: var(--text-secondary);">Loading...</p>
+            </div>
+        </div>
+    </main>
+    <script src="../js/api.js"></script>
+    <script>
+        async function loadFeedback() {
+            try {
+                const res = await api('mentor/feedback');
+                const el = document.getElementById('feedbackList');
+                const fb = res.feedback || [];
+                if (!fb.length) {
+                    el.innerHTML = '<p style="color: var(--text-secondary);">No feedback received yet.</p>';
+                    return;
+                }
+                el.innerHTML = fb.map(f => `
+                    <div style="padding: 1rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: start;">
+                        <div>
+                            <strong>${f.student_name}</strong> — ${new Date(f.submitted_at).toLocaleString()}<br>
+                            <span style="color: var(--text-secondary);">${f.question_text}</span><br>
+                            <strong>Response:</strong> ${f.response_value}
+                            ${f.comment ? `<br><em>Comment: ${f.comment}</em>` : ''}
+                        </div>
+                        <button class="btn btn-danger btn-sm" onclick="deleteFeedback(${f.response_id})">Delete</button>
+                    </div>
+                `).join('');
+            } catch (e) {
+                document.getElementById('feedbackList').innerHTML = '<p style="color: var(--danger);">Failed to load.</p>';
+            }
+        }
+        async function deleteFeedback(id) {
+            if (!confirm('Delete this feedback?')) return;
+            try {
+                await api(`feedback/${id}`, { method: 'DELETE' });
+                loadFeedback();
+            } catch (e) { alert(e.message); }
+        }
+        async function logout() { try { await api('auth/logout', { method: 'POST' }); } catch (e) {} location.href = '../index.html'; }
+        loadFeedback();
+    </script>
+</body>
+</html>

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Feedback Reports - Admin</title>
+    <link rel="stylesheet" href="../css/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="app-layout">
+    <aside class="sidebar">
+        <div class="sidebar-logo">Admin Portal</div>
+        <nav class="sidebar-nav">
+            <a href="dashboard.html">Dashboard</a>
+            <a href="students.html">Student Performance</a>
+            <a href="mentors.html">Mentor Performance</a>
+            <a href="feedback.html">Feedback Management</a>
+            <a href="assignments.html">Assignments</a>
+            <a href="questions.html">Questions</a>
+            <a href="reports.html" class="active">Reports</a>
+            <a href="../index.html" onclick="logout()">Logout</a>
+        </nav>
+    </aside>
+    <main class="main-content">
+        <h1>Feedback Reports</h1>
+        <p style="color: var(--text-secondary); margin-bottom: 2rem;">All feedback submissions.</p>
+
+        <div class="card">
+            <button class="btn btn-secondary" onclick="loadReports()" style="margin-bottom: 1rem;">Refresh</button>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr><th>Date</th><th>Student</th><th>Mentor</th><th>Question</th><th>Response</th><th>Comment</th></tr>
+                    </thead>
+                    <tbody id="reportsTable"></tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+    <script src="../js/api.js"></script>
+    <script>
+        async function loadReports() {
+            try {
+                const res = await api('admin/reports');
+                const rows = res.reports || [];
+                document.getElementById('reportsTable').innerHTML = rows.map(r =>
+                    `<tr>
+                        <td>${new Date(r.submitted_at).toLocaleString()}</td>
+                        <td>${r.student_name}</td>
+                        <td>${r.mentor_name}</td>
+                        <td>${r.question_text}</td>
+                        <td>${r.response_value}</td>
+                        <td>${r.comment || '—'}</td>
+                    </tr>`
+                ).join('') || '<tr><td colspan="6">No reports.</td></tr>';
+            } catch (e) { console.error(e); }
+        }
+        async function logout() { await api('auth/logout', { method: 'POST' }); }
+        loadReports();
+    </script>
+</body>
+</html>

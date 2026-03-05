@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assignments - Admin</title>
+    <link rel="stylesheet" href="../css/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="app-layout">
+    <aside class="sidebar">
+        <div class="sidebar-logo">Admin Portal</div>
+        <nav class="sidebar-nav">
+            <a href="dashboard.html">Dashboard</a>
+            <a href="students.html">Student Performance</a>
+            <a href="mentors.html">Mentor Performance</a>
+            <a href="feedback.html">Feedback Management</a>
+            <a href="assignments.html" class="active">Assignments</a>
+            <a href="questions.html">Questions</a>
+            <a href="reports.html">Reports</a>
+            <a href="../index.html" onclick="logout()">Logout</a>
+        </nav>
+    </aside>
+    <main class="main-content">
+        <h1>Assign Mentors</h1>
+        <p style="color: var(--text-secondary); margin-bottom: 2rem;">Link mentors to students.</p>
+
+        <div class="card">
+            <form id="assignForm">
+                <div class="form-group"><label>Mentor</label><select id="mentorId" name="mentor_id" required><option value="">Select mentor</option></select></div>
+                <div class="form-group"><label>Student</label><select id="studentId" name="student_id" required><option value="">Select student</option></select></div>
+                <button type="submit" class="btn btn-primary">Assign</button>
+            </form>
+            <div id="msg" class="alert" style="display: none; margin-top: 1rem;"></div>
+        </div>
+    </main>
+    <script src="../js/api.js"></script>
+    <script>
+        async function loadDropdowns() {
+            try {
+                const [users, mentors] = await Promise.all([api('admin/users'), api('admin/mentors')]);
+                const students = (users.users || []).filter(u => u.role === 'student');
+                const ments = mentors.mentors || [];
+                document.getElementById('mentorId').innerHTML = '<option value="">Select mentor</option>' + ments.map(m => '<option value="' + m.mentor_id + '">' + m.name + ' (' + m.department + ')</option>').join('');
+                document.getElementById('studentId').innerHTML = '<option value="">Select student</option>' + students.map(s => '<option value="' + s.user_id + '">' + s.name + ' (' + (s.register_number || s.email) + ')</option>').join('');
+            } catch (e) { console.error(e); }
+        }
+        document.getElementById('assignForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            try {
+                const fd = new FormData(this);
+                await api('admin/assignments', { method: 'POST', body: JSON.stringify(Object.fromEntries(fd)) });
+                document.getElementById('msg').className = 'alert alert-success';
+                document.getElementById('msg').textContent = 'Assigned successfully.';
+                document.getElementById('msg').style.display = 'block';
+                this.reset();
+                loadDropdowns();
+            } catch (err) {
+                document.getElementById('msg').className = 'alert alert-danger';
+                document.getElementById('msg').textContent = err.message;
+                document.getElementById('msg').style.display = 'block';
+            }
+        });
+        async function logout() { await api('auth/logout', { method: 'POST' }); }
+        loadDropdowns();
+    </script>
+</body>
+</html>

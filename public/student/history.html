@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Feedback History - Student</title>
+    <link rel="stylesheet" href="../css/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="app-layout">
+    <aside class="sidebar">
+        <div class="sidebar-logo">Student Portal</div>
+        <nav class="sidebar-nav">
+            <a href="dashboard.html">Dashboard</a>
+            <a href="feedback.html">Submit Feedback</a>
+            <a href="history.html" class="active">My History</a>
+            <a href="../index.html" onclick="event.preventDefault(); logout();">Logout</a>
+        </nav>
+    </aside>
+    <main class="main-content">
+        <h1>My Feedback History</h1>
+        <p style="color: var(--text-secondary); margin-bottom: 2rem;">All feedback you have submitted.</p>
+        <div class="card">
+            <div id="historyList">
+                <p style="color: var(--text-secondary);">Loading...</p>
+            </div>
+        </div>
+    </main>
+    <script src="../js/api.js"></script>
+    <script>
+        async function loadHistory() {
+            try {
+                const res = await api('feedback/history');
+                const el = document.getElementById('historyList');
+                if (!res.history || res.history.length === 0) {
+                    el.innerHTML = '<p style="color: var(--text-secondary);">No feedback submitted yet.</p>';
+                    return;
+                }
+                const byDate = {};
+                res.history.forEach(h => {
+                    const k = h.submitted_at;
+                    if (!byDate[k]) byDate[k] = [];
+                    byDate[k].push(h);
+                });
+                el.innerHTML = Object.entries(byDate).sort((a,b)=>b[0].localeCompare(a[0])).map(([ts, items]) => `
+                    <div style="padding: 1rem; border-bottom: 1px solid var(--border); margin-bottom: 1rem;">
+                        <strong>${items[0].mentor_name}</strong> — ${new Date(ts).toLocaleString()}
+                        ${items.map(i => `<p style="margin-top: 0.5rem; color: var(--text-secondary);">${i.question_text}: <strong>${i.response_value}</strong></p>`).join('')}
+                    </div>
+                `).join('');
+            } catch (e) {
+                document.getElementById('historyList').innerHTML = '<p style="color: var(--danger);">Failed to load.</p>';
+            }
+        }
+        async function logout() { try { await api('auth/logout', { method: 'POST' }); } catch (e) {} location.href = '../index.html'; }
+        loadHistory();
+    </script>
+</body>
+</html>

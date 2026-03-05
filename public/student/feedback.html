@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Submit Feedback - Student</title>
+    <link rel="stylesheet" href="../css/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="app-layout">
+    <aside class="sidebar">
+        <div class="sidebar-logo">Student Portal</div>
+        <nav class="sidebar-nav">
+            <a href="dashboard.html">Dashboard</a>
+            <a href="feedback.html" class="active">Submit Feedback</a>
+            <a href="history.html">My History</a>
+            <a href="../index.html" onclick="event.preventDefault(); logout();">Logout</a>
+        </nav>
+    </aside>
+    <main class="main-content">
+        <h1>Submit Feedback</h1>
+        <p style="color: var(--text-secondary); margin-bottom: 2rem;">Submit structured feedback for your mentor. Duplicate submissions are prevented.</p>
+
+        <div class="card" id="noMentor" style="display: none;">
+            <p style="color: var(--warning);">No mentor assigned. Contact admin.</p>
+        </div>
+
+        <div class="card" id="feedbackCard">
+            <form id="feedbackForm">
+                <div id="questionsContainer"></div>
+                <div class="form-group">
+                    <label>Additional Comment (optional)</label>
+                    <textarea name="comment" rows="3"></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary">Submit Feedback</button>
+            </form>
+            <div id="msg" class="alert" style="display: none; margin-top: 1rem;"></div>
+        </div>
+    </main>
+    <script src="../js/api.js"></script>
+    <script>
+        let mentorId = null;
+
+        async function loadData() {
+            try {
+                const [mentorRes, questionsRes] = await Promise.all([
+                    api('student/mentor'),
+                    api('feedback/questions')
+                ]);
+
+                if (!mentorRes.mentor) {
+                    document.getElementById('noMentor').style.display = 'block';
+                    document.getElementById('feedbackCard').style.display = 'none';
+                    return;
+                }
+                mentorId = mentorRes.mentor.mentor_id;
+
+                const container = document.getElementById('questionsContainer');
+                container.innerHTML = '';
+                (questionsRes.questions || []).forEach(q => {
+                    let input = '';
+                    if (q.question_type === 'rating') {
+                        input = `<div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+                            ${[1,2,3,4,5].map(v => `<label><input type="radio" name="q_${q.question_id}" value="${v}" required> ${v}</label>`).join('')}
+                        </div>`;
+                    } else if (q.question_type === 'yes-no') {
+                        input = `<select name="q_${q.question_id}" required><option value="">Select</option><option value="Yes">Yes</option><option value="No">No</option></select>`;
+                    } else {
+                        input = `<textarea name="q_${q.question_id}" rows="3" required></textarea>`;
+                    }
+                    container.innerHTML += `<div class="form-group"><label>${q.question_text}</label>${input}</div>`;
+                });
+            } catch (e) {
+                document.getElementById('msg').className = 'alert alert-danger';
+                document.getElementById('msg').textContent = 'Failed to load.';
+                document.getElementById('msg').style.display = 'block';
+            }
+        }
+
+        document.getElementById('feedbackForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const fd = new FormData(e.target);
+            const answers = [];
+            for (const [k, v] of fd.entries()) {
+                if (k.startsWith('q_')) answers.push({ question_id: k.split('_')[1], response_value: v });
+            }
+            const comment = fd.get('comment') || null;
+            const msg = document.getElementById('msg');
+            msg.style.display = 'none';
+            try {
+                await api('feedback/submit', {
+                    method: 'POST',
+                    body: JSON.stringify({ mentor_id: mentorId, answers, comment })
+                });
+                msg.className = 'alert alert-success';
+                msg.textContent = 'Feedback submitted successfully!';
+                msg.style.display = 'block';
+                e.target.reset();
+            } catch (err) {
+                msg.className = 'alert alert-danger';
+                msg.textContent = err.message || 'Submission failed';
+                msg.style.display = 'block';
+            }
+        });
+
+        async function logout() { try { await api('auth/logout', { method: 'POST' }); } catch (e) {} location.href = '../index.html'; }
+        loadData();
+    </script>
+</body>
+</html>
